@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פאנל ניהול FiveM</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --panel2:#1d2430; --line:#2a3240;
+    --text:#e6edf3; --muted:#8b98a9; --accent:#f5a524; --red:#f0524f; --green:#3fb950; --blue:#4c8dff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+  button,input,select,textarea{font:inherit;color:inherit}
+  input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+  button:hover{border-color:var(--muted)}
+  .primary{background:var(--accent);border-color:var(--accent);color:#111;font-weight:600}
+  .danger{background:transparent;border-color:var(--red);color:var(--red)}
+  .danger:hover{background:var(--red);color:#fff}
+  .sm{padding:5px 9px;font-size:12.5px}
+  .hidden{display:none!important}
+  .muted{color:var(--muted)}
+  .mono{font-family:ui-monospace,Consolas,monospace;direction:ltr;unicode-bidi:plaintext}
+
+  /* login */
+  #login{min-height:100vh;display:grid;place-items:center;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+  #login .card{width:100%;max-width:360px;display:grid;gap:12px}
+  #login h1{margin:0 0 4px;font-size:22px}
+  .err{color:var(--red);min-height:18px;font-size:13px}
+
+  /* layout */
+  header{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  header h1{font-size:17px;margin:0}
+  .stats{display:flex;gap:18px;margin-inline-start:auto;color:var(--muted);flex-wrap:wrap}
+  .stats b{color:var(--text)}
+  nav{display:flex;gap:4px;padding:10px 22px;border-bottom:1px solid var(--line);overflow-x:auto}
+  nav button{background:none;border:none;border-radius:8px;color:var(--muted)}
+  nav button.active{background:var(--panel2);color:var(--text)}
+  main{padding:22px;max-width:1300px;margin:0 auto}
+  .toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+  .toolbar input,.toolbar select{width:auto;flex:1;min-width:180px}
+
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{background:var(--panel2);color:var(--muted);font-weight:500;font-size:12.5px}
+  tr:last-child td{border-bottom:none}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:var(--panel2);border:1px solid var(--line)}
+  .t-ban,.t-ban_block,.t-kick,.t-panel_login_failed{color:var(--red);border-color:#5a2a2a}
+  .t-join,.t-unban,.t-panel_login{color:var(--green);border-color:#244a2c}
+  .t-give_vehicle,.t-give_weapon,.t-set_ped{color:var(--blue);border-color:#2a3d63}
+  .t-announce,.t-command{color:var(--accent);border-color:#5b4416}
+  .ping-good{color:var(--green)} .ping-mid{color:var(--accent)} .ping-bad{color:var(--red)}
+
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .card h3{margin:0 0 12px;font-size:15px}
+  .field{display:grid;gap:5px;margin-bottom:11px}
+  .field label{color:var(--muted);font-size:12.5px}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;margin:0 0 10px;direction:ltr;text-align:left;font-size:12.5px;white-space:pre}
+  .code-head{display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px}
+
+  /* modal */
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:20px;z-index:10}
+  #modal .card{width:100%;max-width:420px}
+  #modal h3{margin-top:0}
+  .modal-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:6px}
+
+  #toast{position:fixed;bottom:20px;left:20px;background:var(--panel2);border:1px solid var(--line);padding:11px 16px;border-radius:10px;z-index:20;max-width:360px}
+  #toast.bad{border-color:var(--red)} #toast.good{border-color:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="login">
+  <form class="card" id="loginForm">
+    <h1>🔐 פאנל ניהול</h1>
+    <div class="muted">התחבר עם הסיסמה מ-server.cfg</div>
+    <input id="lUser" placeholder="שם (לתיעוד בהיסטוריה)" autocomplete="username">
+    <input id="lPass" type="password" placeholder="סיסמה" autocomplete="current-password" required>
+    <button class="primary" type="submit">כניסה</button>
+    <div class="err" id="lErr"></div>
+  </form>
+</section>
+
+<!-- APP -->
+<section id="app" class="hidden">
+  <header>
+    <h1 id="hostname">FiveM</h1>
+    <div class="stats">
+      <span>שחקנים: <b id="sPlayers">0</b></span>
+      <span>באנים: <b id="sBans">0</b></span>
+      <span>זמן פעילות: <b id="sUptime">-</b></span>
+    </div>
+    <button class="sm" id="logoutBtn">התנתק</button>
+  </header>
+  <nav>
+    <button data-tab="players" class="active">👥 שחקנים</button>
+    <button data-tab="bans">⛔ באנים</button>
+    <button data-tab="history">📜 היסטוריה</button>
+    <button data-tab="codes">🧩 יצירת קוד</button>
+    <button data-tab="server">🖥️ שרת</button>
+  </nav>
+
+  <main>
+    <!-- PLAYERS -->
+    <div data-page="players">
+      <div class="toolbar">
+        <input id="pSearch" placeholder="חיפוש לפי שם / ID / מזהה...">
+        <button id="pRefresh">רענן</button>
+      </div>
+      <div id="playersTable"></div>
+    </div>
+
+    <!-- BANS -->
+    <div data-page="bans" class="hidden">
+      <div class="toolbar">
+        <input id="bSearch" placeholder="חיפוש באן...">
+        <button class="danger" id="offlineBanBtn">+ באן לפי מזהה (שחקן לא מחובר)</button>
+      </div>
+      <div id="bansTable"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div data-page="history" class="hidden">
+      <div class="toolbar">
+        <input id="hSearch" placeholder="חיפוש לפי שם / מזהה / סיבה...">
+        <select id="hType"><option value="">כל הסוגים</option></select>
+        <button id="hRefresh">רענן</button>
+      </div>
+      <div id="historyTable"></div>
+    </div>
+
+    <!-- CODES -->
+    <div data-page="codes" class="hidden">
+      <div class="grid2">
+        <div class="card">
+          <h3>יצירת קוד</h3>
+          <div class="field">
+            <label>סוג</label>
+            <select id="cType">
+              <option value="vehicle">🚗 רכב</option>
+              <option value="weapon">🔫 נשק</option>
+              <option value="ped">🧍 פד (דמות)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>שם המודל (spawn name)</label>
+            <input id="cName" class="mono" list="cList" placeholder="adder">
+            <datalist id="cList"></datalist>
+          </div>
+          <div class="field" id="cAmmoWrap">
+            <label>תחמושת</label>
+            <input id="cAmmo" type="number" value="250" min="1" max="9999">
+          </div>
+          <div class="field">
+            <label>Hash</label>
+            <div class="mono" id="cHash">-</div>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+          <h3>שלח לשחקן</h3>
+          <div class="row">
+            <select id="cPlayer"></select>
+            <button class="primary" id="cSend">שלח</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>הקוד שנוצר</h3>
+          <div class="code-head"><span class="muted">Client (Lua)</span><button class="sm" data-copy="codeClient">העתק</button></div>
+          <pre id="codeClient"></pre>
+          <div class="code-head"><span class="muted">Server (Lua) - דרך הפאנל</span><button class="sm" data-copy="codeServer">העתק</button></div>
+          <pre id="codeServer"></pre>
+          <div class="code-head"><span class="muted">פקודת צ׳אט לדוגמה</span><button class="sm" data-copy="codeCmd">העתק</button></div>
+          <pre id="codeCmd"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVER -->
+    <div data-page="server" class="hidden">
+      <div class="grid2">
+        <div class="card">
+          <h3>📢 הכרזה לכל השחקנים</h3>
+          <div class="field"><textarea id="annMsg" rows="3" maxlength="250" placeholder="ההודעה תופיע לכולם בצ׳אט ובהתראה"></textarea></div>
+          <button class="primary" id="annSend">שלח הכרזה</button>
+        </div>
+        <div class="card">
+          <h3>⌨️ פקודת קונסול</h3>
+          <div class="muted" id="consoleNote" style="margin-bottom:10px"></div>
+          <div class="row">
+            <input id="cmdInput" class="mono" placeholder="ensure my-resource">
+            <button class="primary" id="cmdSend">הרץ</button>
+          </div>
+          <div class="muted" style="margin-top:10px;font-size:12.5px">דוגמאות: <span class="mono">restart esx_policejob</span> · <span class="mono">ensure my-map</span> · <span class="mono">stop my-script</span></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<div id="modal" class="hidden"><div class="card" id="modalCard"></div></div>
+<div id="toast" class="hidden"></div>
+
+<script>
+'use strict';
+const BASE = '/' + (location.pathname.split('/').filter(Boolean)[0] || '');
+let token = sessionStorage.getItem('fp_token');
+let players = [], bans = [], history = [], stats = {};
+let currentTab = 'players';
+
+const $ = id => document.getElementById(id);
+const arr = x => Array.isArray(x) ? x : Object.values(x || {});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const TYPES = {
+  join:'התחבר', leave:'התנתק', kick:'קיק', ban:'באן', unban:'הסרת באן', ban_block:'מורחק ניסה להיכנס',
+  give_vehicle:'קיבל רכב', give_weapon:'קיבל נשק', set_ped:'שינוי פד', announce:'הכרזה', command:'פקודת קונסול',
+  panel_login:'כניסה לפאנל', panel_login_failed:'כניסה שנכשלה'
+};
+
+const PRESETS = {
+  vehicle:['adder','zentorno','t20','osiris','entityxf','turismor','kuruma','sultan','elegy2','comet2','jester','banshee','police','police2','police3','policeb','fbi','ambulance','firetruk','riot','insurgent','buzzard','maverick','frogger','hydra','lazer','bati','akuma','sanchez','faggio','bmx','tractor2','dump'],
+  weapon:['weapon_pistol','weapon_combatpistol','weapon_appistol','weapon_pistol50','weapon_revolver','weapon_stungun','weapon_smg','weapon_microsmg','weapon_assaultsmg','weapon_carbinerifle','weapon_assaultrifle','weapon_specialcarbine','weapon_pumpshotgun','weapon_sawnoffshotgun','weapon_sniperrifle','weapon_heavysniper','weapon_mg','weapon_combatmg','weapon_rpg','weapon_grenade','weapon_knife','weapon_bat','weapon_nightstick','weapon_flashlight','weapon_fireextinguisher','weapon_parachute'],
+  ped:['mp_m_freemode_01','mp_f_freemode_01','s_m_y_cop_01','s_f_y_cop_01','s_m_y_sheriff_01','s_m_y_swat_01','s_m_m_paramedic_01','s_m_y_fireman_01','a_m_y_business_01','a_f_y_business_01','g_m_y_ballaorig_01','g_m_y_famca_01','a_c_chop','a_c_husky','a_c_cat_01','u_m_y_zombie_01','ig_trevor','player_zero','player_one','player_two']
+};
+
+/* ---------- API ---------- */
+async function api(path, body) {
+  const r = await fetch(BASE + '/api/' + path, {
+    method: body ? 'POST' : 'GET',
+    headers: Object.assign({'Content-Type':'application/json'}, token ? {Authorization:'Bearer ' + token} : {}),
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('ההתחברות פגה, התחבר שוב'); }
+  if (!r.ok) throw new Error(data.error || ('שגיאה ' + r.status));
+  return data;
+}
+
+function toast(msg, kind = 'good') {
+  const t = $('toast');
+  t.textContent = msg; t.className = kind;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = 'hidden', 3500);
+}
+
+async function act(path, body, okMsg) {
+  try { await api(path, body); toast(okMsg); refreshAll(); return true; }
+  catch (e) { toast(e.message, 'bad'); return false; }
+}
+
+/* ---------- Format ---------- */
+function dur(sec) {
+  sec = Math.max(0, sec | 0);
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  if (d) return `${d}י ${h}ש`;
+  if (h) return `${h}ש ${m}ד`;
+  return `${m}ד`;
+}
+const fmtTime = t => new Date(t * 1000).toLocaleString('he-IL', {dateStyle:'short', timeStyle:'short'});
+const pingClass = p => p < 80 ? 'ping-good' : p < 160 ? 'ping-mid' : 'ping-bad';
+
+/* ---------- Auth ---------- */
+function showLogin() {
+  token = null; sessionStorage.removeItem('fp_token');
+  $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+}
+async function showApp() {
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  await refreshAll();
+}
+$('loginForm').onsubmit = async e => {
+  e.preventDefault(); $('lErr').textContent = '';
+  try {
+    const d = await api('login', {password: $('lPass').value, user: $('lUser').value});
+    token = d.token; sessionStorage.setItem('fp_token', token); $('lPass').value = '';
+    showApp();
+  } catch (err) { $('lErr').textContent = err.message; }
+};
+$('logoutBtn').onclick = async () => { try { await api('logout', {}); } catch (e) {} showLogin(); };
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('[data-page]').forEach(p => p.classList.toggle('hidden', p.dataset.page !== tab));
+  refreshAll();
+}
+
+/* ---------- Data ---------- */
+async function refreshAll() {
+  if (!token) return;
+  try {
+    const [s, p] = await Promise.all([api('stats'), api('players')]);
+    stats = s; players = arr(p);
+    $('hostname').textContent = stats.hostname || 'FiveM';
+    $('sPlayers').textContent = `${stats.players}/${stats.maxPlayers}`;
+    $('sBans').textContent = stats.bans;
+    $('sUptime').textContent = dur(stats.uptime);
+    renderPlayers(); fillPlayerSelect();
+    $('consoleNote').textContent = stats.allowConsole
+      ? 'פקודות רצות ישירות בקונסול של השרת.'
+      : 'כבוי. כדי להפעיל: set panel_allow_console "true" ב-server.cfg';
+    if (currentTab === 'bans') { bans = arr(await api('bans')); renderBans(); }
+    if (currentTab === 'history') { history = arr(await api('history')); renderHistory(); }
+  } catch (e) { toast(e.message, 'bad'); }
+}
+
+/* ---------- Players ---------- */
+function renderPlayers() {
+  const q = $('pSearch').value.trim().toLowerCase();
+  const list = players.filter(p => !q || JSON.stringify(p).toLowerCase().includes(q));
+  if (!list.length) { $('playersTable').innerHTML = `<div class="card empty">${players.length ? 'אין תוצאות' : 'אין שחקנים מחוברים'}</div>`; return; }
+  $('playersTable').innerHTML = `<table><thead><tr><th>ID</th><th>שם</th><th>פינג</th><th>מחובר</th><th>License</th><th>פעולות</th></tr></thead><tbody>${
+    list.map(p => `<tr>
+      <td><b>${p.id}</b></td>
+      <td>${esc(p.name)}</td>
+      <td class="${pingClass(p.ping)}">${p.ping}ms</td>
+      <td>${dur(p.online)}</td>
+      <td class="mono muted" style="font-size:12px">${esc((p.identifiers || {}).license || '-')}</td>
+      <td><div class="actions">
+        <button class="sm" data-a="vehicle" data-id="${p.id}">🚗 רכב</button>
+        <button class="sm" data-a="weapon" data-id="${p.id}">🔫 נשק</button>
+        <button class="sm" data-a="ped" data-id="${p.id}">🧍 פד</button>
+        <button class="sm" data-a="hist" data-id="${p.id}">📜</button>
+        <button class="sm danger" data-a="kick" data-id="${p.id}">קיק</button>
+        <button class="sm danger" data-a="ban" data-id="${p.id}">באן</button>
+      </div></td></tr>`).join('')
+  }</tbody></table>`;
+}
+$('pSearch').oninput = renderPlayers;
+$('pRefresh').onclick = refreshAll;
+
+$('playersTable').onclick = e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return;
+  const p = players.find(x => x.id == b.dataset.id); if (!p) return;
+  const a = b.dataset.a;
+  if (a === 'kick') openModal(`קיק ל-${p.name}`, [{k:'reason', label:'סיבה', ph:'סיבת הקיק'}],
+    v => act('kick', {id:p.id, reason:v.reason}, `${p.name} קיבל קיק`), 'danger', 'קיק');
+  if (a === 'ban') openModal(`באן ל-${p.name}`, [
+      {k:'reason', label:'סיבה', ph:'סיבת הבאן'},
+      {k:'hours', label:'משך', type:'select', opts:[['0','לצמיתות'],['1','שעה'],['6','6 שעות'],['24','יום'],['72','3 ימים'],['168','שבוע'],['720','חודש']]}
+    ], v => act('ban', {id:p.id, reason:v.reason, hours:+v.hours}, `${p.name} קיבל באן`), 'danger', 'באן');
+  if (a === 'vehicle' || a === 'weapon' || a === 'ped') {
+    const labels = {vehicle:'רכב', weapon:'נשק', ped:'פד'};
+    const fields = [{k:'model', label:'שם מודל', list:a, mono:true}];
+    if (a === 'weapon') fields.push({k:'ammo', label:'תחמושת', type:'number', val:'250'});
+    openModal(`${labels[a]} ל-${p.name}`, fields, v => sendGive(a, p.id, v.model, v.ammo));
+  }
+  if (a === 'hist') {
+    $('hSearch').value = (p.identifiers || {}).license || p.name;
+    switchTab('history');
+  }
+};
+
+function sendGive(kind, id, model, ammo) {
+  const route = {vehicle:'give_vehicle', weapon:'give_weapon', ped:'set_ped'}[kind];
+  return act(route, {id, model:(model || '').trim(), ammo:+ammo || 250}, 'נשלח לשחקן');
+}
+
+/* ---------- Bans ---------- */
+function renderBans() {
+  const q = $('bSearch').value.trim().toLowerCase();
+  const now = Date.now() / 1000;
+  const list = bans.slice().reverse().filter(b => !q || JSON.stringify(b).toLowerCase().includes(q));
+  if (!list.length) { $('bansTable').innerHTML = `<div class="card empty">אין באנים</div>`; return; }
+  $('bansTable').innerHTML = `<table><thead><tr><th>מספר</th><th>שם</th><th>סיבה</th><th>ניתן</th><th>עד</th><th>ע״י</th><th>מזהים</th><th></th></tr></thead><tbody>${
+    list.map(b => {
+      const expired = b.expires && b.expires < now;
+      return `<tr style="${expired ? 'opacity:.5' : ''}">
+        <td class="mono">${esc(b.id)}</td>
+        <td>${esc(b.name)}</td>
+        <td>${esc(b.reason)}</td>
+        <td>${fmtTime(b.created)}</td>
+        <td>${b.expires ? fmtTime(b.expires) + (expired ? ' (פג)' : '') : '<span class="tag t-ban">לצמיתות</span>'}</td>
+        <td class="muted">${esc(b.by || '-')}</td>
+        <td class="mono muted" style="font-size:11.5px">${arr(b.identifiers).map(esc).join('<br>')}</td>
+        <td><button class="sm" data-unban="${esc(b.id)}">הסר באן</button></td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+$('bSearch').oninput = renderBans;
+$('bansTable').onclick = e => {
+  const b = e.target.closest('[data-unban]'); if (!b) return;
+  openModal('הסרת באן ' + b.dataset.unban, [], () => act('unban', {banId:b.dataset.unban}, 'הבאן הוסר'), 'primary', 'הסר');
+};
+$('offlineBanBtn').onclick = () => openModal('באן לפי מזהה', [
+    {k:'identifier', label:'מזהה (license / steam / discord / ip)', ph:'license:abc123...', mono:true},
+    {k:'name', label:'שם (לתיעוד)'},
+    {k:'reason', label:'סיבה'},
+    {k:'hours', label:'משך', type:'select', opts:[['0','לצמיתות'],['24','יום'],['168','שבוע'],['720','חודש']]}
+  ], v => act('ban', {identifier:v.identifier.trim(), name:v.name, reason:v.reason, hours:+v.hours}, 'הבאן נוסף'), 'danger', 'באן');
+
+/* ---------- History ---------- */
+Object.entries(TYPES).forEach(([k, v]) => $('hType').insertAdjacentHTML('beforeend', `<option value="${k}">${v}</option>`));
+function histDetails(h) {
+  const parts = [];
+  if (h.name) parts.push(`<b>${esc(h.name)}</b>${h.id ? ` <span class="muted">(#${esc(h.id)})</span>` : ''}`);
+  if (h.model) parts.push(`<span class="mono">${esc(h.model)}</span>`);
+  if (h.reason) parts.push(`סיבה: ${esc(h.reason)}`);
+  if (h.type === 'ban') parts.push(h.hours ? `${esc(h.hours)} שעות` : 'לצמיתות');
+  if (h.banId) parts.push(`<span class="mono">${esc(h.banId)}</span>`);
+  if (h.duration) parts.push(`היה מחובר ${dur(h.duration)}`);
+  if (h.message) parts.push(esc(h.message));
+  if (h.command) parts.push(`<span class="mono">${esc(h.command)}</span>`);
+  if (h.user) parts.push(esc(h.user));
+  if (h.ip && !h.user) parts.push(`<span class="mono">${esc(h.ip)}</span>`);
+  return parts.join(' · ');
+}
+function renderHistory() {
+  const q = $('hSearch').value.trim().toLowerCase(), t = $('hType').value;
+  const list = history.slice().reverse()
+    .filter(h => (!t || h.type === t) && (!q || JSON.stringify(h).toLowerCase().includes(q)))
+    .slice(0, 500);
+  if (!list.length) { $('historyTable').innerHTML = `<div class="card empty">אין רשומות</div>`; return; }
+  $('historyTable').innerHTML = `<table><thead><tr><th>זמן</th><th>סוג</th><th>פרטים</th><th>ע״י</th></tr></thead><tbody>${
+    list.map(h => `<tr>
+      <td class="muted" style="white-space:nowrap">${fmtTime(h.time)}</td>
+      <td><span class="tag t-${esc(h.type)}">${esc(TYPES[h.type] || h.type)}</span></td>
+      <td>${histDetails(h)}</td>
+      <td class="muted">${esc(h.by || '')}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+$('hSearch').oninput = renderHistory;
+$('hType').onchange = renderHistory;
+$('hRefresh').onclick = refreshAll;
+
+/* ---------- Code generator ---------- */
+function joaat(str) {
+  let h = 0;
+  for (const ch of str.toLowerCase()) {
+    h = (h + ch.charCodeAt(0)) >>> 0;
+    h = (h + (h << 10)) >>> 0;
+    h = (h ^ (h >>> 6)) >>> 0;
+  }
+  h = (h + (h << 3)) >>> 0;
+  h = (h ^ (h >>> 11)) >>> 0;
+  h = (h + (h << 15)) >>> 0;
+  return h;
+}
+function fillPresets() {
+  $('cList').innerHTML = PRESETS[$('cType').value].map(n => `<option value="${n}">`).join('');
+}
+function genCode() {
+  const type = $('cType').value;
+  const name = ($('cName').value.trim() || {vehicle:'adder', weapon:'weapon_pistol', ped:'mp_m_freemode_01'}[type]).replace(/[^\w-]/g, '');
+  const ammo = Math.max(1, +$('cAmmo').value || 250);
+  $('cAmmoWrap').classList.toggle('hidden', type !== 'weapon');
+  const h = joaat(name);
+  $('cHash').textContent = `0x${h.toString(16).toUpperCase().padStart(8, '0')}  |  ${h | 0}`;
+
+  const client = {
+    vehicle:
+`local model = \`${name}\`
+RequestModel(model)
+while not HasModelLoaded(model) do Wait(0) end
+
+local ped = PlayerPedId()
+local coords = GetEntityCoords(ped)
+local veh = CreateVehicle(model, coords.x, coords.y, coords.z + 0.5, GetEntityHeading(ped), true, false)
+SetVehicleOnGroundProperly(veh)
+SetPedIntoVehicle(ped, veh, -1)
+SetModelAsNoLongerNeeded(model)`,
+    weapon:
+`local ped = PlayerPedId()
+GiveWeaponToPed(ped, \`${name}\`, ${ammo}, false, true)`,
+    ped:
+`local model = \`${name}\`
+RequestModel(model)
+while not HasModelLoaded(model) do Wait(0) end
+
+SetPlayerModel(PlayerId(), model)
+SetPedDefaultComponentVariation(PlayerPedId())
+SetModelAsNoLongerNeeded(model)`
+  }[type];
+
+  const event = {vehicle:'fivempanel:spawnVehicle', weapon:'fivempanel:giveWeapon', ped:'fivempanel:setPed'}[type];
+  const server = `-- playerId = ה-ID של השחקן בשרת
+TriggerClientEvent('${event}', playerId, '${name}'${type === 'weapon' ? ', ' + ammo : ''})`;
+
+  const cmdName = {vehicle:'car', weapon:'giveweapon', ped:'setped'}[type];
+  const cmd = `RegisterCommand('${cmdName}', function(source, args)
+    -- ACE: add_ace group.admin command.${cmdName} allow
+    local target = tonumber(args[1]) or source
+    TriggerClientEvent('${event}', target, args[2] or '${name}'${type === 'weapon' ? ', ' + ammo : ''})
+end, true)
+-- שימוש בצ׳אט:  /${cmdName} <id> ${name}`;
+
+  $('codeClient').textContent = client;
+  $('codeServer').textContent = server;
+  $('codeCmd').textContent = cmd;
+}
+function fillPlayerSelect() {
+  const sel = $('cPlayer'), cur = sel.value;
+  sel.innerHTML = players.length
+    ? players.map(p => `<option value="${p.id}">#${p.id} - ${esc(p.name)}</option>`).join('')
+    : '<option value="">אין שחקנים מחוברים</option>';
+  if (players.some(p => p.id == cur)) sel.value = cur;
+}
+$('cType').onchange = () => { $('cName').value = ''; fillPresets(); genCode(); };
+$('cName').oninput = genCode;
+$('cAmmo').oninput = genCode;
+$('cSend').onclick = () => {
+  if (!$('cPlayer').value) return toast('אין שחקן נבחר', 'bad');
+  const name = $('cName').value.trim() || $('cName').placeholder;
+  sendGive($('cType').value, +$('cPlayer').value, name, $('cAmmo').value);
+};
+document.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => {
+  try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast('הועתק'); }
+  catch (e) { toast('ההעתקה נכשלה - סמן והעתק ידנית', 'bad'); }
+});
+
+/* ---------- Server tab ---------- */
+$('annSend').onclick = async () => {
+  if (await act('announce', {message:$('annMsg').value}, 'ההכרזה נשלחה')) $('annMsg').value = '';
+};
+$('cmdSend').onclick = async () => {
+  if (await act('command', {command:$('cmdInput').value}, 'הפקודה הורצה')) $('cmdInput').value = '';
+};
+$('cmdInput').onkeydown = e => { if (e.key === 'Enter') $('cmdSend').click(); };
+
+/* ---------- Modal ---------- */
+function openModal(title, fields, onOk, okClass = 'primary', okText = 'אישור') {
+  const card = $('modalCard');
+  card.innerHTML = `<h3>${esc(title)}</h3>` + fields.map(f => `<div class="field"><label>${esc(f.label)}</label>${
+    f.type === 'select'
+      ? `<select data-k="${f.k}">${f.opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>`
+      : `<input data-k="${f.k}" type="${f.type || 'text'}" value="${esc(f.val || '')}" placeholder="${esc(f.ph || '')}"
+           ${f.list ? `list="m-${f.list}"` : ''} class="${f.mono ? 'mono' : ''}">
+         ${f.list ? `<datalist id="m-${f.list}">${PRESETS[f.list].map(n => `<option value="${n}">`).join('')}</datalist>` : ''}`
+  }</div>`).join('') +
+  `<div class="modal-actions"><button class="${okClass}" id="mOk">${okText}</button><button id="mCancel">ביטול</button></div>`;
+  $('modal').classList.remove('hidden');
+  const first = card.querySelector('input,select'); if (first) first.focus();
+  const close = () => $('modal').classList.add('hidden');
+  $('mCancel').onclick = close;
+  $('mOk').onclick = async () => {
+    const v = {};
+    card.querySelectorAll('[data-k]').forEach(el => v[el.dataset.k] = el.value);
+    if (await onOk(v) !== false) close();
+  };
+  card.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') $('mOk').click(); });
+}
+$('modal').onclick = e => { if (e.target.id === 'modal') $('modal').classList.add('hidden'); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('modal').classList.add('hidden'); });
+
+/* ---------- Init ---------- */
+fillPresets(); genCode();
+setInterval(() => { if (token && currentTab === 'players' && $('modal').classList.contains('hidden')) refreshAll(); }, 5000);
+if (token) showApp(); else showLogin();
+</script>
+</body>
+</html>
